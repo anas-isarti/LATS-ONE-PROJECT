@@ -1,0 +1,60 @@
+import '../models/quest.dart';
+
+List<Quest> buildQuestPool() => [
+      Quest(
+        id: 'build_energy_2',
+        type: QuestType.buildEnergy,
+        title: 'Pionnier de l\'énergie',
+        description: 'Construis 2 bâtiments de production énergétique.',
+        targetValue: 2,
+        rewardBudget: 300,
+      ),
+      Quest(
+        id: 'reduce_co2_20',
+        type: QuestType.reduceCo2,
+        title: 'Ville verte',
+        description: 'Réduis ton CO2 de 20 unités.',
+        targetValue: 20,
+        rewardBudget: 500,
+      ),
+      Quest(
+        id: 'build_public_3',
+        type: QuestType.buildPublicServices,
+        title: 'Ville pour tous',
+        description: 'Construis 3 services publics.',
+        targetValue: 3,
+        rewardBudget: 400,
+      ),
+      Quest(
+        id: 'build_transport_2',
+        type: QuestType.buildTransport,
+        title: 'Ville connectée',
+        description: 'Construis 2 infrastructures de transport.',
+        targetValue: 2,
+        rewardBudget: 250,
+      ),
+      Quest(
+        id: 'manage_budget_1000',
+        type: QuestType.manageBudget,
+        title: 'Gestionnaire prudent',
+        description: 'Maintiens ton budget au-dessus de 1000 à la fin du tour.',
+        targetValue: 1000,
+        rewardBudget: 200,
+      ),
+      Quest(
+        id: 'build_energy_4',
+        type: QuestType.buildEnergy,
+        title: 'Indépendance énergétique',
+        description: 'Construis 4 bâtiments de production énergétique.',
+        targetValue: 4,
+        rewardBudget: 600,
+      ),
+      Quest(
+        id: 'reduce_co2_50',
+        type: QuestType.reduceCo2,
+        title: 'Objectif zéro carbone',
+        description: 'Réduis ton CO2 de 50 unités.',
+        targetValue: 50,
+        rewardBudget: 800,
+      ),
+    ];
