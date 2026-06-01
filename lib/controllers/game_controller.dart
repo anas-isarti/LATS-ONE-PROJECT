@@ -5,14 +5,36 @@ import '../models/event.dart';
 import '../models/game_state.dart';
 import '../data/events_data.dart';
 
+class TurnSummary {
+  final int turn;
+  final int revenueEarned;
+  final String? eventTitle;
+  final int co2AfterTurn;
+  final int budgetAfterTurn;
+  final int buildingsPlaced;
+
+  const TurnSummary({
+    required this.turn,
+    required this.revenueEarned,
+    this.eventTitle,
+    required this.co2AfterTurn,
+    required this.budgetAfterTurn,
+    required this.buildingsPlaced,
+  });
+}
+
 class GameController extends ChangeNotifier {
   GameState _state = GameState();
   GameEvent? _activeEvent;
+  int _bestScore = 0;
+  final List<TurnSummary> _turnHistory = [];
+  int _buildingsAtTurnStart = 0;
 
   GameState get state => _state;
   GameEvent? get activeEvent => _activeEvent;
+  int get bestScore => _bestScore;
+  List<TurnSummary> get turnHistory => List.unmodifiable(_turnHistory);
 
-  /// Place un bâtiment. Retourne false si budget insuffisant, déjà placé ou game over.
   bool placeBuilding(Building building) {
     if (_state.isGameOver) return false;
     if (_state.budget < building.cost) return false;
@@ -27,11 +49,11 @@ class GameController extends ChangeNotifier {
     return true;
   }
 
-  /// Passe au tour suivant : revenus, événement aléatoire adaptatif, game over.
   void endTurn() {
     if (_state.isGameOver) return;
 
-    _state.budget += _state.totalRevenue;
+    final revenueEarned = _state.totalRevenue;
+    _state.budget += revenueEarned;
 
     _activeEvent = _pickAdaptiveEvent();
     if (_activeEvent != null) {
@@ -39,11 +61,21 @@ class GameController extends ChangeNotifier {
       _state.co2 += _activeEvent!.co2Impact;
     }
 
+    _turnHistory.add(TurnSummary(
+      turn: _state.currentTurn,
+      revenueEarned: revenueEarned,
+      eventTitle: _activeEvent?.title,
+      co2AfterTurn: _state.co2,
+      budgetAfterTurn: _state.budget,
+      buildingsPlaced: _state.activeBuildings.length - _buildingsAtTurnStart,
+    ));
+
     _state.currentTurn++;
+    _buildingsAtTurnStart = _state.activeBuildings.length;
     _checkGameOver();
 
     if (!_state.isGameOver && _state.currentTurn > _state.maxTurns) {
-      _state.computeScore();
+      if (_state.score > _bestScore) _bestScore = _state.score;
       _state.isGameOver = true;
       _state.gameOverReason = 'Fin de partie — 3 tours terminés.';
     }
@@ -54,22 +86,23 @@ class GameController extends ChangeNotifier {
   void resetGame() {
     _state = GameState();
     _activeEvent = null;
+    _turnHistory.clear();
+    _buildingsAtTurnStart = 0;
     notifyListeners();
   }
 
   void _checkGameOver() {
     if (_state.co2 >= _state.co2Max) {
-      _state.computeScore();
+      if (_state.score > _bestScore) _bestScore = _state.score;
       _state.isGameOver = true;
       _state.gameOverReason = 'CO2 trop élevé ! La ville est invivable.';
     } else if (_state.budget <= 0) {
-      _state.computeScore();
+      if (_state.score > _bestScore) _bestScore = _state.score;
       _state.isGameOver = true;
       _state.gameOverReason = 'Budget épuisé ! La ville est en faillite.';
     }
   }
 
-  /// Sélection pondérée d'un événement, ajustée selon l'état du jeu.
   GameEvent? _pickAdaptiveEvent() {
     final energyCount = _state.activeBuildings
         .where((b) => b.zone == ZoneType.production)

@@ -6,7 +6,6 @@ class GameState {
   int currentTurn;
   final int maxTurns;
   final int co2Max;
-  int score;
   final List<Building> activeBuildings;
   bool isGameOver;
   String? gameOverReason;
@@ -22,7 +21,6 @@ class GameState {
     this.currentTurn = 1,
     this.maxTurns = defaultMaxTurns,
     this.co2Max = defaultCo2Max,
-    this.score = 0,
     List<Building>? activeBuildings,
     this.isGameOver = false,
     this.gameOverReason,
@@ -36,9 +34,8 @@ class GameState {
   int get totalCo2Impact =>
       activeBuildings.fold(0, (sum, b) => sum + b.co2Impact);
 
-  void computeScore() {
-    score = activeBuildings.length * 100 +
-        budget +
-        (co2Max - co2).clamp(0, co2Max);
-  }
+  int get score =>
+      activeBuildings.length * 100 +
+      budget +
+      (co2Max - co2).clamp(0, co2Max);
 }
