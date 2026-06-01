@@ -1,6 +1,7 @@
 import '../models/quest.dart';
 
 List<Quest> buildQuestPool() => [
+      // ── Quêtes originales ────────────────────────────────────────────────
       Quest(
         id: 'build_energy_2',
         type: QuestType.buildEnergy,
@@ -56,5 +57,47 @@ List<Quest> buildQuestPool() => [
         description: 'Réduis ton CO2 de 50 unités.',
         targetValue: 50,
         rewardBudget: 800,
+      ),
+
+      // ── Nouvelles quêtes ─────────────────────────────────────────────────
+      Quest(
+        id: 'balanced_city',
+        type: QuestType.balancedCity,
+        title: 'Équilibre parfait',
+        description: 'Construis des bâtiments dans au moins 3 zones différentes.',
+        targetValue: 3,
+        rewardBudget: 500,
+      ),
+      Quest(
+        id: 'negative_co2',
+        type: QuestType.negativeCo2,
+        title: 'CO2 négatif',
+        description: 'Atteins un bilan CO2 négatif grâce à tes bâtiments verts.',
+        targetValue: 0,
+        rewardBudget: 600,
+      ),
+      Quest(
+        id: 'end_turn_budget_3000',
+        type: QuestType.endTurnBudget,
+        title: 'Gestionnaire expert',
+        description: 'Termine un tour avec plus de 3 000 ¥ en caisse.',
+        targetValue: 3000,
+        rewardBudget: 400,
+      ),
+      Quest(
+        id: 'total_buildings_8',
+        type: QuestType.totalBuildings,
+        title: 'Urbaniste complet',
+        description: 'Construis au moins 8 bâtiments au total.',
+        targetValue: 8,
+        rewardBudget: 700,
+      ),
+      Quest(
+        id: 'low_co2_all_game',
+        type: QuestType.lowCo2AllGame,
+        title: 'Zéro pollution',
+        description: 'Ne jamais dépasser CO2 = 50 sur toute la partie.',
+        targetValue: 50,
+        rewardBudget: 1000,
       ),
     ];

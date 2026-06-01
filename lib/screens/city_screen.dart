@@ -289,7 +289,10 @@ class _CityScreenState extends State<CityScreen>
       ),
       body: Column(
         children: [
-          _StatsHeader(state: state),
+          _StatsHeader(
+              state: state,
+              timerDisplay: gameCtrl.timerDisplay,
+              isTimerLow: gameCtrl.isTimerLow),
           Expanded(
             child: IndexedStack(
               index: _navIndex,
@@ -426,7 +429,13 @@ class _NfcSimSheet extends StatelessWidget {
 
 class _StatsHeader extends StatelessWidget {
   final GameState state;
-  const _StatsHeader({required this.state});
+  final String timerDisplay;
+  final bool isTimerLow;
+  const _StatsHeader({
+    required this.state,
+    required this.timerDisplay,
+    required this.isTimerLow,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -492,6 +501,27 @@ class _StatsHeader extends StatelessWidget {
                     color: Colors.white70,
                     fontSize: 12,
                     fontWeight: FontWeight.w600)),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: isTimerLow
+                  ? _kRed.withValues(alpha: 0.15)
+                  : Colors.white10,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.timer_outlined,
+                  size: 11,
+                  color: isTimerLow ? _kRed : Colors.white54),
+              const SizedBox(width: 3),
+              Text(timerDisplay,
+                  style: TextStyle(
+                      color: isTimerLow ? _kRed : Colors.white70,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600)),
+            ]),
           ),
         ],
       ),

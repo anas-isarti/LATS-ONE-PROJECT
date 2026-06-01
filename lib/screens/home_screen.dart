@@ -2,12 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/game_controller.dart';
 import '../controllers/quest_controller.dart';
+import '../models/scenario.dart';
+import '../widgets/the_last_one_logo.dart';
 
 const _kGold = Color(0xFFFFD700);
 const _kGreen = Color(0xFF4CAF50);
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  Scenario _scenario = Scenario.balance;
+  Difficulty _difficulty = Difficulty.medium;
 
   @override
   Widget build(BuildContext context) {
@@ -16,84 +26,117 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const _CityIllustration(),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 28),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 28),
-                    const Text(
-                      'THE LAST ONE',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: _kGold,
-                        letterSpacing: 5,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      '"Humanity had thousands of chances.\nThis is the last one."',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontStyle: FontStyle.italic,
-                        color: Colors.white38,
-                        height: 1.6,
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                    const _RulesCard(),
-                    const SizedBox(height: 20),
-                    if (bestScore > 0) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: _kGreen.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                              color: _kGreen.withValues(alpha: 0.25)),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.emoji_events,
-                                color: _kGreen, size: 18),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Meilleur score : $bestScore',
-                              style: const TextStyle(
-                                color: _kGreen,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                    ElevatedButton(
-                      onPressed: () => _startNewGame(context),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        textStyle: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.5),
-                      ),
-                      child: const Text('NOUVELLE PARTIE'),
-                    ),
-                    const SizedBox(height: 32),
-                  ],
+              const SizedBox(height: 28),
+              // Logo
+              const Center(child: TheLastOneLogo(size: 150)),
+              const SizedBox(height: 20),
+              // Title
+              const Text(
+                'THE LAST ONE',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.bold,
+                  color: _kGold,
+                  letterSpacing: 5,
                 ),
               ),
+              const SizedBox(height: 8),
+              const Text(
+                '"Humanity had thousands of chances.\nThis is the last one."',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                  color: Colors.white38,
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              // Scenario selector
+              _sectionLabel('SCÉNARIO ADEME'),
+              const SizedBox(height: 10),
+              _ScenarioSelector(
+                selected: _scenario,
+                onChanged: (s) => setState(() => _scenario = s),
+              ),
+              const SizedBox(height: 20),
+
+              // Difficulty selector
+              _sectionLabel('DIFFICULTÉ'),
+              const SizedBox(height: 10),
+              _DifficultySelector(
+                selected: _difficulty,
+                onChanged: (d) => setState(() => _difficulty = d),
+              ),
+              const SizedBox(height: 20),
+
+              // Rules card
+              _RulesCard(difficulty: _difficulty),
+              const SizedBox(height: 20),
+
+              // Best score
+              if (bestScore > 0) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: _kGreen.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border:
+                        Border.all(color: _kGreen.withValues(alpha: 0.25)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.emoji_events,
+                          color: _kGreen, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Meilleur score : $bestScore',
+                        style: const TextStyle(
+                          color: _kGreen,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // Start button
+              Center(
+                child: SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.6,
+                  height: 55,
+                  child: ElevatedButton(
+                    onPressed: () => _startNewGame(context),
+                    style: ElevatedButton.styleFrom(
+                      textStyle: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.5),
+                    ),
+                    child: const Text('NOUVELLE PARTIE'),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Version
+              const Text(
+                'v0.5',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white24, fontSize: 11),
+              ),
+              const SizedBox(height: 16),
             ],
           ),
         ),
@@ -102,114 +145,181 @@ class HomeScreen extends StatelessWidget {
   }
 
   void _startNewGame(BuildContext context) {
-    context.read<GameController>().resetGame();
-    context.read<QuestController>().reset();
-    context.read<QuestController>().generateAdaptiveQuests(
-      context.read<GameController>().state,
-    );
+    final gameCtrl = context.read<GameController>();
+    final questCtrl = context.read<QuestController>();
+    gameCtrl.startGame(_scenario, _difficulty);
+    questCtrl.reset(difficulty: _difficulty);
+    questCtrl.generateAdaptiveQuests(gameCtrl.state);
     Navigator.pushNamed(context, '/city');
   }
 }
 
-// ── City illustration ─────────────────────────────────────────────────────────
+// ── Section label ─────────────────────────────────────────────────────────────
 
-class _CityIllustration extends StatelessWidget {
-  const _CityIllustration();
+Widget _sectionLabel(String text) => Text(
+      text,
+      style: const TextStyle(
+          color: _kGold,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 2),
+    );
+
+// ── Scenario selector ─────────────────────────────────────────────────────────
+
+class _ScenarioSelector extends StatelessWidget {
+  final Scenario selected;
+  final ValueChanged<Scenario> onChanged;
+  const _ScenarioSelector(
+      {required this.selected, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 160,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF050510), Color(0xFF0D0D0D)],
+    return Column(
+      children: Scenario.values
+          .map((s) => _SelectionTile(
+                label: s.label,
+                description: s.description,
+                isSelected: s == selected,
+                onTap: () => onChanged(s),
+                icon: switch (s) {
+                  Scenario.sobriety => Icons.eco,
+                  Scenario.technology => Icons.science,
+                  Scenario.balance => Icons.balance,
+                },
+              ))
+          .toList(),
+    );
+  }
+}
+
+// ── Difficulty selector ───────────────────────────────────────────────────────
+
+class _DifficultySelector extends StatelessWidget {
+  final Difficulty selected;
+  final ValueChanged<Difficulty> onChanged;
+  const _DifficultySelector(
+      {required this.selected, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: Difficulty.values
+          .map((d) => Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: _DifficultyChip(
+                    difficulty: d,
+                    isSelected: d == selected,
+                    onTap: () => onChanged(d),
+                  ),
+                ),
+              ))
+          .toList(),
+    );
+  }
+}
+
+class _DifficultyChip extends StatelessWidget {
+  final Difficulty difficulty;
+  final bool isSelected;
+  final VoidCallback onTap;
+  const _DifficultyChip(
+      {required this.difficulty,
+      required this.isSelected,
+      required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (difficulty) {
+      Difficulty.easy => const Color(0xFF4CAF50),
+      Difficulty.medium => _kGold,
+      Difficulty.hard => const Color(0xFFE53935),
+    };
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? color.withValues(alpha: 0.15)
+              : const Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+              color: isSelected ? color : Colors.white12, width: 1.5),
+        ),
+        child: Text(
+          difficulty.label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+              color: isSelected ? color : Colors.white38,
+              fontSize: 13,
+              fontWeight:
+                  isSelected ? FontWeight.bold : FontWeight.normal),
         ),
       ),
-      child: Stack(
-        alignment: Alignment.bottomCenter,
-        children: [
-          // Subtle star dots
-          const Positioned(top: 14, left: 30,
-              child: _StarDot(size: 2)),
-          const Positioned(top: 8, right: 55,
-              child: _StarDot(size: 1.5)),
-          const Positioned(top: 28, left: 110,
-              child: _StarDot(size: 1.5)),
-          const Positioned(top: 18, right: 130,
-              child: _StarDot(size: 2)),
-          const Positioned(top: 6, left: 200,
-              child: _StarDot(size: 1.5)),
-          // Skyline icons at varying heights
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: const [
-                _SkyIcon(icon: Icons.home, size: 36,
-                    color: Color(0xFF1E3A5F)),
-                _SkyIcon(icon: Icons.apartment, size: 54,
-                    color: Color(0xFF243B55)),
-                _SkyIcon(icon: Icons.business, size: 62,
-                    color: Color(0xFF1A2E4A)),
-                _SkyIcon(icon: Icons.bolt, size: 38, color: _kGold),
-                _SkyIcon(icon: Icons.domain, size: 70,
-                    color: Color(0xFF1A2E4A)),
-                _SkyIcon(icon: Icons.factory, size: 50,
-                    color: Color(0xFF1E3A5F)),
-                _SkyIcon(icon: Icons.eco, size: 34, color: _kGreen),
-                _SkyIcon(icon: Icons.apartment, size: 44,
-                    color: Color(0xFF243B55)),
-                _SkyIcon(icon: Icons.home, size: 30,
-                    color: Color(0xFF1E3A5F)),
-              ],
-            ),
-          ),
-          // Green ground line
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 2,
-              color: _kGreen.withValues(alpha: 0.35),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
 
-class _SkyIcon extends StatelessWidget {
+class _SelectionTile extends StatelessWidget {
+  final String label;
+  final String description;
+  final bool isSelected;
+  final VoidCallback onTap;
   final IconData icon;
-  final double size;
-  final Color color;
-  const _SkyIcon(
-      {required this.icon, required this.size, required this.color});
+
+  const _SelectionTile({
+    required this.label,
+    required this.description,
+    required this.isSelected,
+    required this.onTap,
+    required this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 3),
-      child: Icon(icon, size: size, color: color),
-    );
-  }
-}
-
-class _StarDot extends StatelessWidget {
-  final double size;
-  const _StarDot({required this.size});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: const BoxDecoration(
-          color: Colors.white54, shape: BoxShape.circle),
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? _kGold.withValues(alpha: 0.08)
+              : const Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+              color: isSelected ? _kGold : Colors.white12, width: 1.5),
+        ),
+        child: Row(
+          children: [
+            Icon(icon,
+                size: 18,
+                color: isSelected ? _kGold : Colors.white38),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label,
+                      style: TextStyle(
+                          color: isSelected ? _kGold : Colors.white70,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13)),
+                  Text(description,
+                      style: const TextStyle(
+                          color: Colors.white38, fontSize: 11)),
+                ],
+              ),
+            ),
+            if (isSelected)
+              const Icon(Icons.check_circle, color: _kGold, size: 16),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -217,12 +327,18 @@ class _StarDot extends StatelessWidget {
 // ── Rules card ────────────────────────────────────────────────────────────────
 
 class _RulesCard extends StatelessWidget {
-  const _RulesCard();
+  final Difficulty difficulty;
+  const _RulesCard({required this.difficulty});
 
   @override
   Widget build(BuildContext context) {
+    final co2Color = switch (difficulty) {
+      Difficulty.easy => _kGreen,
+      Difficulty.medium => _kGold,
+      Difficulty.hard => const Color(0xFFE53935),
+    };
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
         borderRadius: BorderRadius.circular(10),
@@ -230,27 +346,26 @@ class _RulesCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Text(
-            'RÈGLES DU JEU',
-            style: TextStyle(
-                color: _kGold,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2),
-          ),
-          SizedBox(height: 12),
-          _RuleRow(Icons.monetization_on_outlined,
-              'Budget de départ', '5 000 ¥', _kGold),
-          SizedBox(height: 8),
-          _RuleRow(Icons.cloud_outlined,
-              'CO2 maximum', '200 unités', Color(0xFF4CAF50)),
-          SizedBox(height: 8),
-          _RuleRow(Icons.schedule,
-              'Durée de la partie', '3 tours', Colors.white54),
-          SizedBox(height: 8),
-          _RuleRow(Icons.warning_amber_outlined,
-              'Game over si', 'CO2 max ou budget épuisé', Color(0xFFE53935)),
+        children: [
+          const Text('RÈGLES DU JEU',
+              style: TextStyle(
+                  color: _kGold,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2)),
+          const SizedBox(height: 10),
+          _RuleRow(Icons.monetization_on_outlined, 'Budget de départ',
+              '${difficulty.startBudget} ¥', _kGold),
+          const SizedBox(height: 6),
+          _RuleRow(Icons.cloud_outlined, 'CO2 maximum',
+              '${difficulty.co2Max} unités', co2Color),
+          const SizedBox(height: 6),
+          _RuleRow(Icons.schedule, 'Durée', '3 tours · 20 minutes',
+              Colors.white54),
+          const SizedBox(height: 6),
+          _RuleRow(Icons.warning_amber_outlined, 'Game over si',
+              'CO2 max, budget épuisé ou temps écoulé',
+              const Color(0xFFE53935)),
         ],
       ),
     );
@@ -266,20 +381,18 @@ class _RuleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 14, color: color),
-        const SizedBox(width: 8),
-        Expanded(
+    return Row(children: [
+      Icon(icon, size: 14, color: color),
+      const SizedBox(width: 8),
+      Expanded(
           child: Text(label,
-              style: const TextStyle(color: Colors.white54, fontSize: 12)),
-        ),
-        Text(value,
-            style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.w600)),
-      ],
-    );
+              style:
+                  const TextStyle(color: Colors.white54, fontSize: 12))),
+      Text(value,
+          style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w600)),
+    ]);
   }
 }

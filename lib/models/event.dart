@@ -5,6 +5,9 @@ enum EventType {
   economicBoom,
   pollution,
   internationalAid,
+  citizenRevolt,
+  techInnovation,
+  environmentalInspection,
 }
 
 class GameEvent {
@@ -14,8 +17,8 @@ class GameEvent {
   final String description;
   final int budgetImpact;
   final int co2Impact;
-  final int duration; // en tours
-  final double weight; // poids de probabilité pour le système adaptatif
+  final int duration;
+  final double weight;
 
   const GameEvent({
     required this.id,

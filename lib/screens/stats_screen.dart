@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/game_controller.dart';
-import '../models/game_state.dart';
 
 const _kGold = Color(0xFFFFD700);
 const _kGreen = Color(0xFF4CAF50);
@@ -19,7 +18,7 @@ class StatsScreen extends StatelessWidget {
     final co2Color =
         co2Ratio < 0.5 ? _kGreen : co2Ratio < 0.75 ? Colors.orange : _kRed;
     final budgetRatio =
-        (state.budget / GameState.initialBudget).clamp(0.0, 1.0);
+        (state.budget / state.initialBudget).clamp(0.0, 1.0);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),

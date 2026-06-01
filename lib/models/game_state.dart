@@ -2,6 +2,7 @@ import 'building.dart';
 
 class GameState {
   int budget;
+  final int initialBudget;
   int co2;
   int currentTurn;
   final int maxTurns;
@@ -9,22 +10,23 @@ class GameState {
   final List<Building> activeBuildings;
   bool isGameOver;
   String? gameOverReason;
+  int maxCo2EverReached;
 
-  static const int initialBudget = 5000;
-  static const int initialCo2 = 0;
-  static const int defaultCo2Max = 200;
   static const int defaultMaxTurns = 3;
 
   GameState({
-    this.budget = initialBudget,
-    this.co2 = initialCo2,
+    int startBudget = 5000,
+    this.co2 = 0,
     this.currentTurn = 1,
     this.maxTurns = defaultMaxTurns,
-    this.co2Max = defaultCo2Max,
+    this.co2Max = 200,
     List<Building>? activeBuildings,
     this.isGameOver = false,
     this.gameOverReason,
-  }) : activeBuildings = activeBuildings ?? [];
+    this.maxCo2EverReached = 0,
+  })  : budget = startBudget,
+        initialBudget = startBudget,
+        activeBuildings = activeBuildings ?? [];
 
   bool get isLastTurn => currentTurn >= maxTurns;
 
@@ -34,8 +36,9 @@ class GameState {
   int get totalCo2Impact =>
       activeBuildings.fold(0, (sum, b) => sum + b.co2Impact);
 
+  // CO2 negative counts as bonus (no upper cap)
   int get score =>
       activeBuildings.length * 100 +
       budget +
-      (co2Max - co2).clamp(0, co2Max);
+      (co2Max - co2 > 0 ? co2Max - co2 : 0);
 }

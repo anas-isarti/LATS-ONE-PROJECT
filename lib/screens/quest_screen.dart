@@ -180,6 +180,16 @@ class _QuestCard extends StatelessWidget {
             .length;
       case QuestType.manageBudget:
         return state.budget;
+      case QuestType.balancedCity:
+        return state.activeBuildings.map((b) => b.zone).toSet().length;
+      case QuestType.negativeCo2:
+        return state.co2 < 0 ? 1 : 0;
+      case QuestType.endTurnBudget:
+        return state.budget;
+      case QuestType.totalBuildings:
+        return state.activeBuildings.length;
+      case QuestType.lowCo2AllGame:
+        return state.maxCo2EverReached;
     }
   }
 }
