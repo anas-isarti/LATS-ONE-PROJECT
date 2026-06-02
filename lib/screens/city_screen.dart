@@ -127,19 +127,65 @@ class _CityScreenState extends State<CityScreen>
   void _onEndTurn() {
     final gameCtrl = context.read<GameController>();
     final questCtrl = context.read<QuestController>();
+    final turnNumber = gameCtrl.state.currentTurn;
     gameCtrl.endTurn();
     questCtrl.evaluateAndReward(gameCtrl.state);
     questCtrl.generateAdaptiveQuests(gameCtrl.state);
 
+    if (!mounted || gameCtrl.state.isGameOver) return;
+
     final event = gameCtrl.activeEvent;
-    if (event != null && mounted && !gameCtrl.state.isGameOver) {
+    final penalties = gameCtrl.needsPenaltiesLastTurn;
+
+    if (penalties.isNotEmpty || event != null) {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
           backgroundColor: _kCard,
-          title: Text(event.title, style: const TextStyle(color: _kGold)),
-          content: Text(event.description,
-              style: const TextStyle(color: Colors.white70)),
+          title: Text('Fin du tour $turnNumber',
+              style: const TextStyle(color: _kGold, fontWeight: FontWeight.bold)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (penalties.isNotEmpty) ...[
+                  const Text('Infrastructures manquantes',
+                      style: TextStyle(
+                          color: _kRed,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  ...penalties.map((p) => Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.warning_amber_rounded,
+                                size: 13, color: _kRed),
+                            const SizedBox(width: 5),
+                            Expanded(
+                                child: Text(p,
+                                    style: const TextStyle(
+                                        color: Colors.white70, fontSize: 11))),
+                          ],
+                        ),
+                      )),
+                  if (event != null)
+                    const Divider(color: Colors.white12, height: 18),
+                ],
+                if (event != null) ...[
+                  Text(event.title,
+                      style: const TextStyle(
+                          color: _kGold, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text(event.description,
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 12)),
+                ],
+              ],
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -215,7 +261,7 @@ class _CityScreenState extends State<CityScreen>
     }
 
     // Budget
-    if (budget > 3500) {
+    if (budget > 3000) {
       points.add('Budget très sain ($budget ¥ restants) : vous n\'avez peut-être pas assez investi dans vos infrastructures.');
     } else if (budget < 300) {
       points.add('Budget très serré ($budget ¥) : priorisez les bâtiments à revenus (éolien, solaire, hydraulique).');
@@ -250,9 +296,9 @@ class _CityScreenState extends State<CityScreen>
 
     final co2 = state.co2;
     Color perfColor;
-    if (score >= 6000 || co2 < 0) {
+    if (score >= 3000 || co2 < 0) {
       perfColor = _kGreen;
-    } else if (score >= 3500 && co2 < state.co2Max ~/ 2) {
+    } else if (score >= 1500 && co2 < state.co2Max ~/ 2) {
       perfColor = _kGold;
     } else {
       perfColor = Colors.white54;
@@ -519,86 +565,132 @@ class _StatsHeader extends StatelessWidget {
 
     return Container(
       color: _kCard,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: Row(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            flex: 4,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  Icon(Icons.cloud_outlined, size: 12, color: co2Color),
-                  const SizedBox(width: 4),
-                  Text('CO2 ${state.co2}/${state.co2Max}',
+          Row(
+            children: [
+              Expanded(
+                flex: 4,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Icon(Icons.cloud_outlined, size: 12, color: co2Color),
+                      const SizedBox(width: 4),
+                      Text('CO2 ${state.co2}/${state.co2Max}',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: co2Color,
+                              fontWeight: FontWeight.w600)),
+                    ]),
+                    const SizedBox(height: 4),
+                    LinearProgressIndicator(
+                      value: co2Ratio,
+                      minHeight: 5,
+                      color: co2Color,
+                      backgroundColor: Colors.white10,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                flex: 3,
+                child: Row(children: [
+                  const Icon(Icons.monetization_on_outlined,
+                      size: 13, color: _kGold),
+                  const SizedBox(width: 3),
+                  Flexible(
+                    child: Text('${state.budget} ¥',
+                        style: const TextStyle(
+                            color: _kGold,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                ]),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white10,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text('T${state.currentTurn}/${state.maxTurns}',
+                    style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600)),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isTimerLow
+                      ? _kRed.withValues(alpha: 0.15)
+                      : Colors.white10,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.timer_outlined,
+                      size: 11,
+                      color: isTimerLow ? _kRed : Colors.white54),
+                  const SizedBox(width: 3),
+                  Text(timerDisplay,
                       style: TextStyle(
-                          fontSize: 11,
-                          color: co2Color,
+                          color: isTimerLow ? _kRed : Colors.white70,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600)),
                 ]),
-                const SizedBox(height: 4),
-                LinearProgressIndicator(
-                  value: co2Ratio,
-                  minHeight: 5,
-                  color: co2Color,
-                  backgroundColor: Colors.white10,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            flex: 3,
-            child: Row(children: [
-              const Icon(Icons.monetization_on_outlined,
-                  size: 13, color: _kGold),
-              const SizedBox(width: 3),
-              Flexible(
-                child: Text('${state.budget} ¥',
-                    style: const TextStyle(
-                        color: _kGold,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold),
-                    overflow: TextOverflow.ellipsis),
               ),
-            ]),
+            ],
           ),
-          const SizedBox(width: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: Colors.white10,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text('T${state.currentTurn}/${state.maxTurns}',
-                style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600)),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: isTimerLow
-                  ? _kRed.withValues(alpha: 0.15)
-                  : Colors.white10,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.timer_outlined,
-                  size: 11,
-                  color: isTimerLow ? _kRed : Colors.white54),
-              const SizedBox(width: 3),
-              Text(timerDisplay,
-                  style: TextStyle(
-                      color: isTimerLow ? _kRed : Colors.white70,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600)),
-            ]),
-          ),
+          const SizedBox(height: 6),
+          _CityNeedsRow(buildings: state.activeBuildings),
         ],
       ),
+    );
+  }
+}
+
+class _CityNeedsRow extends StatelessWidget {
+  final List<Building> buildings;
+  const _CityNeedsRow({required this.buildings});
+
+  @override
+  Widget build(BuildContext context) {
+    const needs = [
+      (ZoneType.production, Icons.bolt, 'Énergie'),
+      (ZoneType.residential, Icons.home, 'Logements'),
+      (ZoneType.publicDistribution, Icons.school, 'Services'),
+      (ZoneType.transport, Icons.directions_bus, 'Transport'),
+      (ZoneType.enterprise, Icons.business, 'Économie'),
+    ];
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: needs.map((n) {
+        final (zone, icon, label) = n;
+        final isCritical = zone != ZoneType.enterprise;
+        final has = buildings.any((b) => b.zone == zone);
+        final color = has ? _kGreen : (isCritical ? _kRed : Colors.white38);
+        return Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 2),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 9,
+                  color: color,
+                  fontWeight: isCritical && !has
+                      ? FontWeight.bold
+                      : FontWeight.normal)),
+        ]);
+      }).toList(),
     );
   }
 }

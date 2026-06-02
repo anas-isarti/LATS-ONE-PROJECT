@@ -32,6 +32,7 @@ class GameController extends ChangeNotifier {
   bool _isNewRecord = false;
   final List<TurnSummary> _turnHistory = [];
   int _buildingsAtTurnStart = 0;
+  List<String> _needsPenaltiesLastTurn = [];
 
   Scenario _scenario = Scenario.balance;
   Difficulty _difficulty = Difficulty.medium;
@@ -48,6 +49,7 @@ class GameController extends ChangeNotifier {
   int get secondsRemaining => _secondsRemaining;
   Scenario get scenario => _scenario;
   Difficulty get difficulty => _difficulty;
+  List<String> get needsPenaltiesLastTurn => List.unmodifiable(_needsPenaltiesLastTurn);
 
   bool get isTimerLow => _secondsRemaining <= 300; // < 5 min
 
@@ -70,6 +72,7 @@ class GameController extends ChangeNotifier {
     _isNewRecord = false;
     _turnHistory.clear();
     _buildingsAtTurnStart = 0;
+    _needsPenaltiesLastTurn = [];
     _secondsRemaining = _gameDuration;
     _startTimer();
     notifyListeners();
@@ -96,6 +99,8 @@ class GameController extends ChangeNotifier {
 
     final revenueEarned = _state.totalRevenue;
     _state.budget += revenueEarned;
+
+    _applyNeedsPenalties();
 
     _activeEvent = _pickAdaptiveEvent();
     if (_activeEvent != null) {
@@ -158,6 +163,29 @@ class GameController extends ChangeNotifier {
   }
 
   // ── Game over ──────────────────────────────────────────────────────────
+
+  void _applyNeedsPenalties() {
+    _needsPenaltiesLastTurn = [];
+    final buildings = _state.activeBuildings;
+
+    if (!buildings.any((b) => b.zone == ZoneType.production)) {
+      _state.budget -= 400;
+      _state.co2 += 15;
+      _needsPenaltiesLastTurn.add('Pas d\'énergie : -400 ¥, CO2 +15');
+    }
+    if (!buildings.any((b) => b.zone == ZoneType.residential)) {
+      _state.budget -= 250;
+      _needsPenaltiesLastTurn.add('Pas de logements : -250 ¥');
+    }
+    if (!buildings.any((b) => b.zone == ZoneType.publicDistribution)) {
+      _state.budget -= 200;
+      _needsPenaltiesLastTurn.add('Pas de services publics (école, hôpital…) : -200 ¥');
+    }
+    if (!buildings.any((b) => b.zone == ZoneType.transport)) {
+      _state.budget -= 150;
+      _needsPenaltiesLastTurn.add('Pas de transport : -150 ¥');
+    }
+  }
 
   void _checkGameOver() {
     if (_state.isGameOver) return;

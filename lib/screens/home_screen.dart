@@ -366,6 +366,10 @@ class _RulesCard extends StatelessWidget {
           _RuleRow(Icons.warning_amber_outlined, 'Game over si',
               'CO2 max, budget épuisé ou temps écoulé',
               const Color(0xFFE53935)),
+          const SizedBox(height: 6),
+          _RuleRow(Icons.domain_outlined, 'Pénalités/tour',
+              'Zones vides (énergie, logements, services, transport) → malus budget',
+              Colors.orange),
         ],
       ),
     );
