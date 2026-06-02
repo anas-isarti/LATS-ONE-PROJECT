@@ -36,9 +36,9 @@ class GameState {
   int get totalCo2Impact =>
       activeBuildings.fold(0, (sum, b) => sum + b.co2Impact);
 
-  // CO2 negative counts as bonus (no upper cap)
+  // CO2 negative counts as bonus — formula fixed per consigne: (200 - co2)
   int get score =>
       activeBuildings.length * 100 +
       budget +
-      (co2Max - co2 > 0 ? co2Max - co2 : 0);
+      (200 - co2);
 }

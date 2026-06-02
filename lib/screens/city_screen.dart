@@ -168,21 +168,93 @@ class _CityScreenState extends State<CityScreen>
     );
   }
 
+  String _buildPerformanceMessage(GameController gameCtrl) {
+    final state = gameCtrl.state;
+    final buildings = state.activeBuildings;
+    final greenCount = buildings.where((b) => b.co2Impact < 0).length;
+    final heavyPolluters = buildings.where((b) => b.co2Impact >= 40).length;
+    final zones = buildings.map((b) => b.zone).toSet().length;
+    final co2 = state.co2;
+    final budget = state.budget;
+    final score = state.score;
+    final bestScore = gameCtrl.bestScore;
+    final history = gameCtrl.turnHistory;
+
+    final points = <String>[];
+
+    // CO2 assessment
+    if (co2 < 0) {
+      points.add('CO2 négatif ($co2) : votre ville absorbe plus de carbone qu\'elle n\'en émet. Exemplaire !');
+    } else if (co2 < state.co2Max ~/ 4) {
+      points.add('CO2 bien maîtrisé ($co2/${state.co2Max}) : vous gérez bien l\'impact écologique.');
+    } else if (co2 > (state.co2Max * 0.75).round()) {
+      points.add('CO2 critique ($co2/${state.co2Max}) : investissez en priorité dans les énergies vertes dès le 1er tour.');
+    } else {
+      points.add('CO2 modéré ($co2/${state.co2Max}) : quelques bâtiments verts supplémentaires feraient la différence.');
+    }
+
+    // Green buildings
+    if (greenCount == 0) {
+      points.add('Aucun bâtiment écologique : solaire, éolien et hydraulique réduisent le CO2 et génèrent des revenus.');
+    } else if (greenCount >= 4) {
+      points.add('$greenCount bâtiments écologiques : belle transition énergétique !');
+    } else {
+      points.add('$greenCount bâtiment(s) vert(s) : c\'est un début, ajoutez-en davantage pour faire pencher la balance CO2.');
+    }
+
+    // Heavy polluters
+    if (heavyPolluters >= 2) {
+      points.add('$heavyPolluters industrie(s) lourde(s)/usine(s) : revenus intéressants mais CO2 très élevé — compensez avec du vert.');
+    }
+
+    // Zone diversity
+    if (zones < 2) {
+      points.add('1 seule zone exploitée : diversifiez votre ville pour débloquer plus de quêtes et de revenus.');
+    } else if (zones >= 4) {
+      points.add('$zones zones développées : urbanisme équilibré, bravo !');
+    }
+
+    // Budget
+    if (budget > 3500) {
+      points.add('Budget très sain ($budget ¥ restants) : vous n\'avez peut-être pas assez investi dans vos infrastructures.');
+    } else if (budget < 300) {
+      points.add('Budget très serré ($budget ¥) : priorisez les bâtiments à revenus (éolien, solaire, hydraulique).');
+    }
+
+    // Previous games comparison
+    if (gameCtrl.isNewRecord) {
+      points.add('Nouveau record ! Votre meilleur score est maintenant $bestScore pts.');
+    } else if (bestScore > 0) {
+      final gap = bestScore - score;
+      points.add('Score de $score pts, à $gap pts de votre record ($bestScore) — vous pouvez le battre !');
+    }
+
+    // CO2 trend across turns
+    if (history.length >= 2) {
+      final co2Rise = history.last.co2AfterTurn - history.first.co2AfterTurn;
+      if (co2Rise > 30) {
+        points.add('CO2 en forte hausse entre les tours (+$co2Rise) : anticipez l\'écologie plus tôt.');
+      }
+    }
+
+    return '• ${points.join('\n• ')}';
+  }
+
   void _showGameOverDialog() {
-    final state = context.read<GameController>().state;
+    final gameCtrl = context.read<GameController>();
+    final state = gameCtrl.state;
     final score = state.score;
     final isWin = state.currentTurn > state.maxTurns;
 
-    String performanceMsg;
+    final performanceMsg = _buildPerformanceMessage(gameCtrl);
+
+    final co2 = state.co2;
     Color perfColor;
-    if (score >= 6000) {
-      performanceMsg = 'Excellent ! La ville est un modèle écologique mondial.';
+    if (score >= 6000 || co2 < 0) {
       perfColor = _kGreen;
-    } else if (score >= 3500) {
-      performanceMsg = 'Bien joué ! La ville est sur la bonne voie.';
+    } else if (score >= 3500 && co2 < state.co2Max ~/ 2) {
       perfColor = _kGold;
     } else {
-      performanceMsg = 'Peut mieux faire. La prochaine fois sera meilleure.';
       perfColor = Colors.white54;
     }
 
@@ -196,7 +268,8 @@ class _CityScreenState extends State<CityScreen>
           style: const TextStyle(
               color: _kGold, fontSize: 20, fontWeight: FontWeight.bold),
         ),
-        content: Column(
+        content: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -235,15 +308,16 @@ class _CityScreenState extends State<CityScreen>
               ),
               child: Text(
                 performanceMsg,
-                textAlign: TextAlign.center,
+                textAlign: TextAlign.left,
                 style: TextStyle(
                     color: perfColor,
-                    fontSize: 12,
+                    fontSize: 11,
                     fontStyle: FontStyle.italic,
-                    height: 1.4),
+                    height: 1.5),
               ),
             ),
           ],
+        ),
         ),
         actions: [
           ElevatedButton(

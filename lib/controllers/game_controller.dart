@@ -29,6 +29,7 @@ class GameController extends ChangeNotifier {
   GameState _state = GameState();
   GameEvent? _activeEvent;
   int _bestScore = 0;
+  bool _isNewRecord = false;
   final List<TurnSummary> _turnHistory = [];
   int _buildingsAtTurnStart = 0;
 
@@ -42,6 +43,7 @@ class GameController extends ChangeNotifier {
   GameState get state => _state;
   GameEvent? get activeEvent => _activeEvent;
   int get bestScore => _bestScore;
+  bool get isNewRecord => _isNewRecord;
   List<TurnSummary> get turnHistory => List.unmodifiable(_turnHistory);
   int get secondsRemaining => _secondsRemaining;
   Scenario get scenario => _scenario;
@@ -65,6 +67,7 @@ class GameController extends ChangeNotifier {
       co2Max: difficulty.co2Max,
     );
     _activeEvent = null;
+    _isNewRecord = false;
     _turnHistory.clear();
     _buildingsAtTurnStart = 0;
     _secondsRemaining = _gameDuration;
@@ -114,7 +117,7 @@ class GameController extends ChangeNotifier {
     _checkGameOver();
 
     if (!_state.isGameOver && _state.currentTurn > _state.maxTurns) {
-      if (_state.score > _bestScore) _bestScore = _state.score;
+      if (_state.score > _bestScore) { _isNewRecord = true; _bestScore = _state.score; }
       _state.isGameOver = true;
       _state.gameOverReason = 'Fin de partie — 3 tours terminés.';
       _stopTimer();
@@ -148,7 +151,7 @@ class GameController extends ChangeNotifier {
   void _triggerTimeout() {
     _stopTimer();
     if (_state.isGameOver) return;
-    if (_state.score > _bestScore) _bestScore = _state.score;
+    if (_state.score > _bestScore) { _isNewRecord = true; _bestScore = _state.score; }
     _state.isGameOver = true;
     _state.gameOverReason = 'Temps écoulé ! La ville n\'a pas été sauvée à temps.';
     notifyListeners();
@@ -159,12 +162,12 @@ class GameController extends ChangeNotifier {
   void _checkGameOver() {
     if (_state.isGameOver) return;
     if (_state.co2 >= _state.co2Max) {
-      if (_state.score > _bestScore) _bestScore = _state.score;
+      if (_state.score > _bestScore) { _isNewRecord = true; _bestScore = _state.score; }
       _state.isGameOver = true;
       _state.gameOverReason = 'CO2 trop élevé ! La ville est invivable.';
       _stopTimer();
     } else if (_state.budget <= 0) {
-      if (_state.score > _bestScore) _bestScore = _state.score;
+      if (_state.score > _bestScore) { _isNewRecord = true; _bestScore = _state.score; }
       _state.isGameOver = true;
       _state.gameOverReason = 'Budget épuisé ! La ville est en faillite.';
       _stopTimer();
@@ -238,11 +241,18 @@ class GameController extends ChangeNotifier {
         .where((b) => b.zone == ZoneType.enterprise)
         .length;
 
+    final totalGreenCount = _state.activeBuildings
+        .where((b) => b.co2Impact < 0)
+        .length;
+
     final weighted = allEvents.map((e) {
       double w = e.weight;
 
       // Negative event difficulty multiplier
       if (_isNegativeEvent(e)) w *= _difficulty.negativeEventMultiplier;
+
+      // Green subsidy requires actual ecological effort from the player
+      if (e.type == EventType.greenSubsidy && totalGreenCount == 0) w = 0.0;
 
       // Adaptive weights
       if (e.type == EventType.energyCrisis && energyCount == 0) w *= 2.0;
