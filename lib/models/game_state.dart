@@ -36,16 +36,80 @@ class GameState {
   int get totalCo2Impact =>
       activeBuildings.fold(0, (sum, b) => sum + b.co2Impact);
 
-  // Score: buildings are the main driver; budget/CO2 are bonuses; missing infrastructure penalized
+  // ── Énergie ───────────────────────────────────────────────────────────────
+
+  /// Énergie totale produite (MWh) par les bâtiments de production
+  double get energyProduced => activeBuildings
+      .where((b) => b.zone == ZoneType.production)
+      .fold(0.0, (sum, b) => sum + (b.netEnergy > 0 ? b.netEnergy : 0));
+
+  /// Énergie totale consommée (MWh) par les bâtiments non-production
+  double get energyConsumed => activeBuildings
+      .where((b) => b.zone != ZoneType.production)
+      .fold(0.0, (sum, b) {
+        final e = b.netEnergy;
+        return sum + (e < 0 ? e.abs() : 0);
+      });
+
+  /// Capacité de transport disponible (MWh) — somme des transports
+  double get transportCapacity => activeBuildings
+      .where((b) => b.zone == ZoneType.transport)
+      .fold(0.0, (sum, b) => sum + (b.netEnergy > 0 ? b.netEnergy : 0));
+
+  /// Énergie effectivement distribuée (limitée par la capacité de transport)
+  double get energyDistributed {
+    if (transportCapacity == 0) return 0;
+    return energyProduced < transportCapacity
+        ? energyProduced
+        : transportCapacity;
+  }
+
+  /// Indice énergétique : ratio énergie distribuée / énergie consommée
+  /// 1.0 = parfaitement équilibré, >1 = surplus, <1 = déficit
+  double get energyIndex {
+    if (energyConsumed == 0) return energyDistributed > 0 ? 1.5 : 1.0;
+    return (energyDistributed / energyConsumed).clamp(0.0, 2.0);
+  }
+
+  /// Taux d'électrification : part des bâtiments ayant des paramètres
+  /// d'électrification activés (valeur > minimum)
+  double get electrificationRate {
+    if (activeBuildings.isEmpty) return 0;
+    int electrified = 0;
+    for (final b in activeBuildings) {
+      final hasElec = b.parameters.any((p) =>
+          p.energyPerUnit != 0 && p.value > p.minValue);
+      if (hasElec) electrified++;
+    }
+    return electrified / activeBuildings.length;
+  }
+
+  /// Pénalité transport : énergie produite mais non transportable
+  double get transportLoss {
+    if (transportCapacity == 0 && energyProduced > 0) return energyProduced;
+    if (energyProduced > transportCapacity) return energyProduced - transportCapacity;
+    return 0;
+  }
+
+  // ── Score ─────────────────────────────────────────────────────────────────
+
   int get score {
+    // Base : bâtiments + budget + CO2
     final base = activeBuildings.length * 300 +
         (budget / 20).round() +
         (200 - co2) * 2;
-    final raw = base - _missingInfraPenalty;
+
+    // Bonus transition énergétique
+    final energyBonus = (energyIndex * 500).round();
+    final elecBonus = (electrificationRate * 300).round();
+
+    // Malus transport (perte d'énergie)
+    final transportMalus = (transportLoss * 10).round();
+
+    final raw = base + energyBonus + elecBonus - transportMalus - _missingInfraPenalty;
     return raw < 0 ? 0 : raw;
   }
 
-  // Penalize missing critical infrastructure at end-of-game
   int get _missingInfraPenalty {
     var p = 0;
     if (!activeBuildings.any((b) => b.zone == ZoneType.production)) p += 500;
