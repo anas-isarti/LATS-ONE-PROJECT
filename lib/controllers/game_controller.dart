@@ -14,6 +14,7 @@ class TurnSummary {
   final int co2AfterTurn;
   final int budgetAfterTurn;
   final int buildingsPlaced;
+  final double energyIndexAfterTurn;
 
   const TurnSummary({
     required this.turn,
@@ -22,6 +23,7 @@ class TurnSummary {
     required this.co2AfterTurn,
     required this.budgetAfterTurn,
     required this.buildingsPlaced,
+    required this.energyIndexAfterTurn,
   });
 }
 
@@ -38,7 +40,7 @@ class GameController extends ChangeNotifier {
   Difficulty _difficulty = Difficulty.medium;
 
   Timer? _gameTimer;
-  int _secondsRemaining = 1200; // 20 minutes
+  int _secondsRemaining = 1200;
   static const int _gameDuration = 1200;
 
   GameState get state => _state;
@@ -49,9 +51,10 @@ class GameController extends ChangeNotifier {
   int get secondsRemaining => _secondsRemaining;
   Scenario get scenario => _scenario;
   Difficulty get difficulty => _difficulty;
-  List<String> get needsPenaltiesLastTurn => List.unmodifiable(_needsPenaltiesLastTurn);
+  List<String> get needsPenaltiesLastTurn =>
+      List.unmodifiable(_needsPenaltiesLastTurn);
 
-  bool get isTimerLow => _secondsRemaining <= 300; // < 5 min
+  bool get isTimerLow => _secondsRemaining <= 300;
 
   String get timerDisplay {
     final m = _secondsRemaining ~/ 60;
@@ -59,7 +62,7 @@ class GameController extends ChangeNotifier {
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
-  // ── Public API ──────────────────────────────────────────────────────────
+  // ── Public API ─────────────────────────────────────────────────────────────
 
   void startGame(Scenario scenario, Difficulty difficulty) {
     _scenario = scenario;
@@ -78,14 +81,24 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Place un bâtiment avec ses paramètres déjà configurés.
+  /// Le coût total (base + paramètres) est déduit du budget.
   bool placeBuilding(Building building) {
     if (_state.isGameOver) return false;
-    if (_state.budget < building.cost) return false;
     if (_state.activeBuildings.any((b) => b.nfcId == building.nfcId)) return false;
 
-    _state.budget -= building.cost;
-    final effectiveCo2 = _effectiveCo2Impact(building);
-    _state.co2 += effectiveCo2;
+    final totalCost = building.totalCost;
+    if (_state.budget < totalCost) return false;
+
+    _state.budget -= totalCost;
+
+    // CO2 : base scénarisé + contributions des paramètres
+    final effectiveBaseCo2 = _effectiveCo2Impact(building);
+    final paramCo2 = building.parameters
+        .fold(0.0, (sum, p) => sum + p.co2Contribution)
+        .round();
+    _state.co2 += effectiveBaseCo2 + paramCo2;
+
     _updateMaxCo2();
     _state.activeBuildings.add(building);
 
@@ -99,6 +112,9 @@ class GameController extends ChangeNotifier {
 
     final revenueEarned = _state.totalRevenue;
     _state.budget += revenueEarned;
+
+    // Malus si énergie produite mais pas transportable
+    _applyTransportMalus();
 
     _applyNeedsPenalties();
 
@@ -114,7 +130,9 @@ class GameController extends ChangeNotifier {
       eventTitle: _activeEvent?.title,
       co2AfterTurn: _state.co2,
       budgetAfterTurn: _state.budget,
-      buildingsPlaced: _state.activeBuildings.length - _buildingsAtTurnStart,
+      buildingsPlaced:
+          _state.activeBuildings.length - _buildingsAtTurnStart,
+      energyIndexAfterTurn: _state.energyIndex,
     ));
 
     _state.currentTurn++;
@@ -122,7 +140,10 @@ class GameController extends ChangeNotifier {
     _checkGameOver();
 
     if (!_state.isGameOver && _state.currentTurn > _state.maxTurns) {
-      if (_state.score > _bestScore) { _isNewRecord = true; _bestScore = _state.score; }
+      if (_state.score > _bestScore) {
+        _isNewRecord = true;
+        _bestScore = _state.score;
+      }
       _state.isGameOver = true;
       _state.gameOverReason = 'Fin de partie — 3 tours terminés.';
       _stopTimer();
@@ -131,10 +152,28 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Legacy reset: restarts with stored scenario/difficulty
   void resetGame() => startGame(_scenario, _difficulty);
 
-  // ── Timer ──────────────────────────────────────────────────────────────
+  // ── Transport malus ────────────────────────────────────────────────────────
+
+  void _applyTransportMalus() {
+    final loss = _state.transportLoss;
+    if (loss <= 0) return;
+
+    // Perte d'énergie → malus CO2 (énergie gaspillée) + malus budget
+    final co2Malus = (loss * 0.5).round().clamp(0, 30);
+    final budgetMalus = (loss * 5).round().clamp(0, 500);
+
+    if (co2Malus > 0 || budgetMalus > 0) {
+      _state.co2 += co2Malus;
+      _state.budget -= budgetMalus;
+      _needsPenaltiesLastTurn.add(
+          'Énergie non transportée (${loss.toStringAsFixed(0)} MWh perdus) :'
+          ' CO2 +$co2Malus, -$budgetMalus ¥');
+    }
+  }
+
+  // ── Timer ──────────────────────────────────────────────────────────────────
 
   void _startTimer() {
     _gameTimer?.cancel();
@@ -156,16 +195,19 @@ class GameController extends ChangeNotifier {
   void _triggerTimeout() {
     _stopTimer();
     if (_state.isGameOver) return;
-    if (_state.score > _bestScore) { _isNewRecord = true; _bestScore = _state.score; }
+    if (_state.score > _bestScore) {
+      _isNewRecord = true;
+      _bestScore = _state.score;
+    }
     _state.isGameOver = true;
-    _state.gameOverReason = 'Temps écoulé ! La ville n\'a pas été sauvée à temps.';
+    _state.gameOverReason =
+        'Temps écoulé ! La ville n\'a pas été sauvée à temps.';
     notifyListeners();
   }
 
-  // ── Game over ──────────────────────────────────────────────────────────
+  // ── Game over ──────────────────────────────────────────────────────────────
 
   void _applyNeedsPenalties() {
-    _needsPenaltiesLastTurn = [];
     final buildings = _state.activeBuildings;
 
     if (!buildings.any((b) => b.zone == ZoneType.production)) {
@@ -179,23 +221,31 @@ class GameController extends ChangeNotifier {
     }
     if (!buildings.any((b) => b.zone == ZoneType.publicDistribution)) {
       _state.budget -= 200;
-      _needsPenaltiesLastTurn.add('Pas de services publics (école, hôpital…) : -200 ¥');
+      _needsPenaltiesLastTurn.add(
+          'Pas de services publics (école, hôpital…) : -200 ¥');
     }
     if (!buildings.any((b) => b.zone == ZoneType.transport)) {
       _state.budget -= 150;
-      _needsPenaltiesLastTurn.add('Pas de transport : -150 ¥');
+      _needsPenaltiesLastTurn
+          .add('Pas de transport d\'énergie : -150 ¥');
     }
   }
 
   void _checkGameOver() {
     if (_state.isGameOver) return;
     if (_state.co2 >= _state.co2Max) {
-      if (_state.score > _bestScore) { _isNewRecord = true; _bestScore = _state.score; }
+      if (_state.score > _bestScore) {
+        _isNewRecord = true;
+        _bestScore = _state.score;
+      }
       _state.isGameOver = true;
       _state.gameOverReason = 'CO2 trop élevé ! La ville est invivable.';
       _stopTimer();
     } else if (_state.budget <= 0) {
-      if (_state.score > _bestScore) { _isNewRecord = true; _bestScore = _state.score; }
+      if (_state.score > _bestScore) {
+        _isNewRecord = true;
+        _bestScore = _state.score;
+      }
       _state.isGameOver = true;
       _state.gameOverReason = 'Budget épuisé ! La ville est en faillite.';
       _stopTimer();
@@ -208,17 +258,15 @@ class GameController extends ChangeNotifier {
     }
   }
 
-  // ── Scenario multipliers ───────────────────────────────────────────────
+  // ── Scenario multipliers ───────────────────────────────────────────────────
 
   int _effectiveCo2Impact(Building building) {
     final base = building.co2Impact;
     switch (_scenario) {
       case Scenario.sobriety:
-        // Green energy: 1.5× reduction
         if (building.zone == ZoneType.production && base < 0) {
           return (base * 1.5).round();
         }
-        // Industrie lourde: 1.5× pollution
         if (building.nfcId == 'industrie_lourde') {
           return (base * 1.5).round();
         }
@@ -234,7 +282,7 @@ class GameController extends ChangeNotifier {
     }
   }
 
-  // ── Event system ───────────────────────────────────────────────────────
+  // ── Event system ───────────────────────────────────────────────────────────
 
   void _applyEventEffect(GameEvent event) {
     if (event.id == 'environmental_inspection') {
@@ -268,34 +316,28 @@ class GameController extends ChangeNotifier {
     final enterpriseCount = _state.activeBuildings
         .where((b) => b.zone == ZoneType.enterprise)
         .length;
-
-    final totalGreenCount = _state.activeBuildings
-        .where((b) => b.co2Impact < 0)
-        .length;
+    final totalGreenCount =
+        _state.activeBuildings.where((b) => b.co2Impact < 0).length;
 
     final weighted = allEvents.map((e) {
       double w = e.weight;
 
-      // Negative event difficulty multiplier
       if (_isNegativeEvent(e)) w *= _difficulty.negativeEventMultiplier;
-
-      // Green subsidy requires actual ecological effort from the player
       if (e.type == EventType.greenSubsidy && totalGreenCount == 0) w = 0.0;
-
-      // Adaptive weights
       if (e.type == EventType.energyCrisis && energyCount == 0) w *= 2.0;
       if (e.type == EventType.pollution && co2Ratio > 0.5) w *= 2.0;
       if (e.type == EventType.greenSubsidy && co2Ratio < 0.25) w *= 1.5;
       if (e.type == EventType.economicBoom && enterpriseCount >= 2) w *= 1.5;
 
-      // New events
+      // Bonus si indice énergétique bon
+      if (e.type == EventType.greenSubsidy && _state.energyIndex >= 1.0) {
+        w *= 1.5;
+      }
+
       if (e.id == 'citizen_revolt' &&
           !hasPublicServices &&
-          _state.currentTurn > 1) { w *= 3.0; }
-
-      if (e.id == 'tech_innovation' && greenEnergyCount > 3) { w *= 2.0; }
-
-      // Technologie scenario: boost tech innovation
+          _state.currentTurn > 1) w *= 3.0;
+      if (e.id == 'tech_innovation' && greenEnergyCount > 3) w *= 2.0;
       if (_scenario == Scenario.technology && e.id == 'tech_innovation') {
         w *= 2.0;
       }
