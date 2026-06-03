@@ -4,26 +4,22 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.0'
+          flutter-version: '3.44.1'
           channel: 'stable'
 
       - name: Install dependencies
@@ -49,20 +45,6 @@ jobs:
       - name: Zip build web
         if: steps.check_changes.outputs.changed == 'true'
         run: zip -r web_build.zip build/web
-
-      - name: Commit and Push Web Build to Release Branch
-        if: steps.check_changes.outputs.changed == 'true'
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add web_build.zip
-          git commit -m "Generate new web build"
-          git checkout --orphan temp_release
-          git rm -rf .
-          git checkout main -- web_build.zip
-          git add web_build.zip
-          git commit -m "Update web build"
-          git push -f origin temp_release:release
 
       - name: Create GitHub Release
         if: steps.check_changes.outputs.changed == 'true'
